@@ -138,13 +138,14 @@ class SymfonyCommanderBase:
             command = "php app/console --no-ansi " + command
         else:
             command = self.php_command + " app/console --no-ansi " + command
-        result, e = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, cwd=self.base_directory).communicate()
+        print(command)
+        result, e = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, cwd=self.base_directory, executable=os.environ['SHELL']).communicate()
         if e:
             return e
         else:
             if not result and not quiet:
                 result = "Finished " + command
-            return result
+            return result.decode('utf-8')
 
     def callPhpunit(self, command):
         self.loadSettings()
@@ -153,13 +154,13 @@ class SymfonyCommanderBase:
             return
         os.chdir(self.base_directory)
         command = "phpunit " + command
-        result, e = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, cwd=self.base_directory).communicate()
+        result, e = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, cwd=self.base_directory, executable=os.environ['SHELL']).communicate()
         if e:
             return e
         else:
             if not result:
                 result = "Finished " + command
-            return result
+            return result.decode('utf-8')
 
     def loadRoutes(self, force=False):
         if not force and len(SymfonyCommanderBase.routes[self.base_directory]) > 0:
@@ -273,7 +274,8 @@ class SymfonyCommanderBase:
         SymfonyCommanderBase.common_snippets[self.base_directory] = []
 
     def output(self, value):
-        self.multi_line_output(value)
+        # self.multi_line_output(value)
+        self.view.run_command('symfony_commander_output', {"value": value})
 
     def multi_line_output(self, value, panel_name='SymfonyCommander'):
         # Create the output Panel
@@ -300,7 +302,17 @@ class SymfonyCommanderBase:
 
     def is_enabled(self):
         self.loadSettings()
-        return self.base_directory
+        return bool(self.base_directory)
+
+class SymfonyCommanderOutputCommand(sublime_plugin.TextCommand):
+    def run(self, edit, value, panel_name="SymfonyCommander"):
+        # Create the output Panel
+        panel = self.view.window().get_output_panel(panel_name)
+        panel.set_read_only(False)
+        panel.set_syntax_file('Packages/Text/Plain text.tmLanguage')
+        panel.insert(edit, panel.size(), str(value))
+        panel.set_read_only(True)
+        self.view.window().run_command("show_panel", {"panel": "output." + panel_name})
 
 
 class SymfonyCommander(SymfonyCommanderBase, sublime_plugin.TextCommand):
@@ -576,7 +588,7 @@ class SymfonyCommanderRunTestCommand(sublime_plugin.TextCommand, SymfonyCommande
 
     def is_enabled(self):
         self.loadSettings()
-        return self.base_directory
+        return bool(self.base_directory)
 
 
 class SymfonyCommanderRunTestBundleCommand(sublime_plugin.TextCommand, SymfonyCommanderBase):
@@ -587,4 +599,4 @@ class SymfonyCommanderRunTestBundleCommand(sublime_plugin.TextCommand, SymfonyCo
 
     def is_enabled(self):
         self.loadSettings()
-        return self.getCurrentBundleFolder()
+        return bool(self.getCurrentBundleFolder())
