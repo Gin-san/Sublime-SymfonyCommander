@@ -26,6 +26,7 @@ import sublime
 import sublime_plugin
 import re
 import webbrowser
+from .Edit import Edit as Edit
 
 # Some global vars:
 jump_to_action = ''
@@ -63,6 +64,8 @@ class SymfonyCommanderBase:
 
     def loadSettings(self):
         self.base_directory = ''
+        s = sublime.load_settings("SymfonyCommander.sublime-settings")
+        self.consolename = s.get('consolename')
         if self.view:
             project_settings = self.view.settings().get('SymfonyCommander', {})
             if project_settings:
@@ -78,7 +81,7 @@ class SymfonyCommanderBase:
                         for file in os.listdir(dir_name):
                             if file == "app" and os.path.isdir(dir_name + "/" + file):
                                 #found an app dir
-                                if os.path.exists(dir_name + "/" + file + '/console'):
+                                if os.path.exists(dir_name + "/" + file + '/' + self.consolename):
                                     self.base_directory = dir_name
                                     found_root = True
                         #travers up
@@ -100,7 +103,6 @@ class SymfonyCommanderBase:
                 if self.base_directory not in SymfonyCommanderBase.common_snippets:
                     SymfonyCommanderBase.common_snippets[self.base_directory] = []
 
-        s = sublime.load_settings("SymfonyCommander.sublime-settings")
         self.php_command = s.get('php_command')
         if s.get('api_search_version'):
             self.api_search_version = s.get('api_search_version')
@@ -135,9 +137,9 @@ class SymfonyCommanderBase:
         os.chdir(self.base_directory)
         # CMD:
         if not self.php_command:
-            command = "php app/console --no-ansi " + command
+            command = "php app/" + self.consolename + " --no-ansi " + command
         else:
-            command = self.php_command + " app/console --no-ansi " + command
+            command = self.php_command + " app/" + self.consolename + "--no-ansi " + command
         print(command)
         result, e = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, cwd=self.base_directory, executable=os.environ['SHELL']).communicate()
         if e:
@@ -320,9 +322,11 @@ class SymfonyCommander(SymfonyCommanderBase, sublime_plugin.TextCommand):
     def injectText(self, edit, text):
         for r in self.view.sel():
             if r.size() > 0:
-                self.view.replace(edit, r, text)
+                with Edit(self.view) as edit:
+                    edit.replace(r, text)
             else:
-                self.view.insert(edit, r.begin(), text)
+                with Edit(self.view) as edit:
+                    edit.insert(r.begin(), text)
 
 
 class SymfonyCommanderClearCacheCommand(SymfonyCommander):
@@ -455,7 +459,7 @@ class SymfonyCommanderAutocomplete(sublime_plugin.EventListener, SymfonyCommande
             return []
 
         # only if in a string contenxt
-        scope = view.syntax_name(view.sel()[0].end())
+        scope = view.scope_name(view.sel()[0].end())
 
         is_valid_scope = False
         for valid_scope in self.valid_scopes:

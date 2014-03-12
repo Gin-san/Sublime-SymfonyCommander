@@ -3,6 +3,8 @@
 	// if set, use this command instead:
 	// 		e.g. "/usr/bin/php app/console" or "C:\php\php.exe app/console" or "php app/console"
 	"php_command": false,
+	// if custom console is used specify it's name and it's must be in app/ directory
+	"consolename": "console",
 	// for searching in the symfony api,
 	// could be "master" or something like "v2.0.14" 
 	"api_search_version": "master",
